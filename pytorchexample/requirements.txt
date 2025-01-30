@@ -1,0 +1,4 @@
+flwr[simulation]
+ray
+numpy<2
+scikit-learn
