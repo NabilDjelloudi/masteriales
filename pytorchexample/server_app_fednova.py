@@ -43,33 +43,33 @@ class CustomFedNova(FedAvg):
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[BaseException],
     ) -> Tuple[Parameters, Metrics]:
-        """Aggregate fit results using FedNova logic with temporal normalization."""
+        """Aggregate fit results using FedNova logic with temporal normalization and display accuracy."""
         if not results:
             print("[FedNova] No results received from clients during aggregation.")
             return None, {}
 
-        # Calculer les pondérations basées sur les durées locales (normalisation temporelle)
-        total_time = sum(fit_res.metrics["time"] for _, fit_res in results)
+        # ✅ Calculer les pondérations basées sur les durées locales (normalisation temporelle)
+        total_time = sum(fit_res.metrics.get("time", 1.0) for _, fit_res in results)
         normalized_weights = []
 
         for _, fit_res in results:
             weights = parameters_to_ndarrays(fit_res.parameters)
-            time_ratio = fit_res.metrics["time"] / total_time  # Normalisation temporelle
+            time_ratio = fit_res.metrics.get("time", 1.0) / max(1e-6, total_time)  # Évite KeyError et division par zéro
             normalized_weights.append([w * time_ratio for w in weights])
 
-        # Agréger les poids normalisés
+        # ✅ Agréger les poids normalisés
         aggregated_weights = [
             sum(weight[k] for weight in normalized_weights) for k in range(len(normalized_weights[0]))
         ]
 
-        # Calcul des métriques globales
-        global_loss = sum(fit_res.metrics["loss"] for _, fit_res in results) / len(results)
-        global_accuracy = sum(fit_res.metrics["accuracy"] for _, fit_res in results) / len(results)
+        # ✅ Calculer la **moyenne des accuracies et des pertes**
+        avg_loss = sum(fit_res.metrics["loss"] for _, fit_res in results) / len(results)
+        global_accuracy = sum(fit_res.metrics.get("accuracy", 0.0) for _, fit_res in results) / len(results)
 
-        # Conversion en paramètres Flower
-        aggregated_parameters = ndarrays_to_parameters(aggregated_weights)
+        # ✅ Afficher `Accuracy` **correctement** après chaque round
+        print(f"[FedNova] Round {server_round}: Loss={avg_loss:.4f}, Accuracy={global_accuracy:.4f}")
 
-        # Sauvegarde des poids finaux si c'est le dernier round
+        # ✅ Sauvegarde des poids si c'est le dernier round
         if server_round == self.total_rounds:
             try:
                 with open(f"{output_dir}/global_parameters_round_{server_round}.pkl", "wb") as f:
@@ -78,28 +78,22 @@ class CustomFedNova(FedAvg):
             except Exception as e:
                 print(f"[FedNova] Error saving final weights: {e}")
 
-        # Ajout des métriques globales
+        # ✅ Retourner les poids et **les métriques globales**
         global_metrics = {
-            "global_loss": global_loss,
-            "global_accuracy": global_accuracy,
+            "global_loss": avg_loss,
+            "global_accuracy": global_accuracy,  # ✅ Ajout d'Accuracy dans les métriques
         }
 
-        print(
-            f"[FedNova] Round {server_round}: Loss={global_loss:.4f}, Accuracy={global_accuracy:.4f}"
-        )
-
-        return aggregated_parameters, global_metrics
+        return ndarrays_to_parameters(aggregated_weights), global_metrics
 
 
 def server_fn(context: dict) -> ServerAppComponents:
-    """Initialiser et retourner les composants du serveur pour FedNova."""
+    """Initialiser et retourner les composants du serveur."""
     num_rounds = context.run_config.get("num-server-rounds", 3)
 
-    # Initialisation du modèle global
     net = Net()
     initial_parameters = ndarrays_to_parameters(get_weights(net))
 
-    # Configuration de la stratégie
     strategy = CustomFedNova(
         total_rounds=num_rounds,
         fraction_fit=1.0,
@@ -109,9 +103,14 @@ def server_fn(context: dict) -> ServerAppComponents:
     )
 
     print(f"[FedNova] Strategy configured for {num_rounds} rounds")
+
     config = ServerConfig(num_rounds=num_rounds)
 
+    # Ajouter l'indication de stratégie pour les clients
+    context.run_config["strategy"] = "FedNova"
+
     return ServerAppComponents(strategy=strategy, config=config)
+
 
 
 # Créer l'application du serveur

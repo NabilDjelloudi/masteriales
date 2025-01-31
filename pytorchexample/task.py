@@ -75,32 +75,40 @@ def load_data(partition_id: int, num_partitions: int, batch_size: int, rotation_
     return trainloader, testloader
 
 
-def train(net, trainloader, valloader, epochs, lr, device):
-    """Train the network."""
+def train(net, trainloader, valloader, epochs, lr, device, proximal_mu=0.0, global_weights=None):
+    """Train the network with optional FedProx proximal term."""
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9)
     net.to(device)
     net.train()
 
-    for epoch in range(epochs):  # loop over the dataset multiple times
+    for epoch in range(epochs):  
         running_loss = 0.0
         for images, labels in trainloader:
             images, labels = images.to(device), labels.to(device)
-
-            # Zero the parameter gradients
             optimizer.zero_grad()
 
-            # Forward + backward + optimize
+            # Forward pass
             outputs = net(images)
             loss = criterion(outputs, labels)
+
+            # ✅ Ajout du terme de régularisation de FedProx
+            if proximal_mu > 0 and global_weights is not None:
+                global_params = list(global_weights)  
+                for param, global_param in zip(net.parameters(), global_params):
+                    prox_term = proximal_mu * (param - global_param.to(device)).norm(2)
+                    loss += prox_term
+
+            # Backpropagation + mise à jour
             loss.backward()
             optimizer.step()
-
             running_loss += loss.item()
+
         print(f"Epoch {epoch + 1}, Loss: {running_loss / len(trainloader):.3f}")
 
     print("Finished Training")
     return {"loss": running_loss / len(trainloader)}
+
 
 
 def test(net, testloader, device):

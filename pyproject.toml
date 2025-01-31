@@ -18,16 +18,16 @@ publisher = "flwrlabs"
 default = "local-simulation"
 
 [tool.flwr.app.components]
-# serverapp = "pytorchexample.server_app_fedavg:app"  # Ajout de cette ligne pour éviter l'erreur
-serverapp = "pytorchexample.server_app_fednova:app"
-# serverapp = "pytorchexample.server_app_fedprox:app"
+#serverapp = "pytorchexample.server_app_fedavg:app"  # Ajout de cette ligne pour éviter l'erreur
+#serverapp = "pytorchexample.server_app_fednova:app"
+serverapp = "pytorchexample.server_app_fedprox:app"
 fedavg_serverapp = "pytorchexample.server_app_fedavg:app"
 fednova_serverapp = "pytorchexample.server_app_fednova:app"
 fedprox_serverapp = "pytorchexample.server_app_fedprox:app"
 clientapp = "pytorchexample.client_app:app"
 
 [tool.flwr.app.config]
-num-server-rounds = 6
+num-server-rounds = 15
 fraction-evaluate = 0.5 # 50% des clients évaluent le modèle après chaque round
 fraction-fit = 1.0 # tous les clients disponibles participent à l'entraînement
 min-fit-clients = 2 # Au moins 2 clients doivent réussir l'entraînement

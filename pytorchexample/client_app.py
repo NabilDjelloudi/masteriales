@@ -14,18 +14,22 @@ ROTATION_DEGREES = [0, 36, 72, 108, 144, 180, 216, 252, 288, 324]
 
 # Define Flower Client
 class FlowerClient(NumPyClient):
-    def __init__(self, trainloader, valloader, local_epochs, learning_rate):
+    def __init__(self, trainloader, valloader, local_epochs, learning_rate, proximal_mu=0.0):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.net = Net().to(self.device)  # Déplacement du modèle sur le dispositif
         self.trainloader = trainloader
         self.valloader = valloader
         self.local_epochs = local_epochs
         self.lr = learning_rate
+        self.proximal_mu = proximal_mu  # ✅ Facteur proximal pour FedProx
+
 
     def fit(self, parameters, config):
         """Train the model with data of this client."""
         print(f"Received weights: {len(parameters)} layers")
         set_weights(self.net, parameters)  # Appliquer les poids reçus
+
+        start_time = time.time()
         results = train(
             self.net,
             self.trainloader,
@@ -33,8 +37,24 @@ class FlowerClient(NumPyClient):
             self.local_epochs,
             self.lr,
             self.device,
+            proximal_mu=self.proximal_mu if config.get("strategy", "") == "FedProx" else 0.0,  # ✅ Appliquer FedProx si activé
+            global_weights=parameters if config.get("strategy", "") == "FedProx" else None,  # ✅ Poids globaux pour régularisation
         )
+
+        end_time = time.time()
+        training_time = end_time - start_time
+
+        results["time"] = training_time  # ✅ Ajouter le temps d'entraînement
+
+        # 🔍 Tester après l'entraînement
+        loss, accuracy = test(self.net, self.valloader, self.device)
+        results["accuracy"] = accuracy  # ✅ Ajouter accuracy
+
+        # 🚀 Vérifier ce que le client envoie au serveur
+        print(f"[Client] Sending results: {results}")
+
         return get_weights(self.net), len(self.trainloader.dataset), results
+
 
 
 
@@ -46,26 +66,26 @@ class FlowerClient(NumPyClient):
 
 
 def client_fn(context: Context):
-    """Construct a Client that will be run in a ClientApp."""
-
-    # Read the node_config to fetch data partition associated to this node
+    """Construit un client qui choisit la bonne fonction d'entraînement selon la stratégie."""
+    
     partition_id = context.node_config["partition-id"]
     num_partitions = context.node_config["num-partitions"]
-
-    # Vérification du partition ID
     assert partition_id < len(ROTATION_DEGREES), "Partition ID out of range for ROTATION_DEGREES"
 
-    # Déterminer le degré de rotation pour ce client
     rotation_degree = ROTATION_DEGREES[partition_id]
-
-    # Read run_config to fetch hyperparameters relevant to this run
     batch_size = context.run_config["batch-size"]
     trainloader, valloader = load_data(partition_id, num_partitions, batch_size, rotation_degree)
     local_epochs = context.run_config["local-epochs"]
     learning_rate = context.run_config["learning-rate"]
 
-    # Return Client instance with `.to_client()` conversion
-    return FlowerClient(trainloader, valloader, local_epochs, learning_rate).to_client()
+    proximal_mu = context.run_config.get("proximal-mu", 0.0)  # ✅ Récupérer mu si FedProx
+    client = FlowerClient(trainloader, valloader, local_epochs, learning_rate, proximal_mu)
+
+
+    return client.to_client()
+
+
+
 
 
 def evaluate(self, parameters, config):
