@@ -58,11 +58,11 @@ class SaveFinalWeightsFedAvg(FedAvg):
             torch.save(state_dict, output_path)
             print(f" Poids globaux sauvegardés dans {output_path}")
 
-            return aggregated_parameters, metrics_aggregated  # ✅ On retourne bien un tuple
+            return aggregated_parameters, metrics_aggregated  #  On retourne bien un tuple
 
         except Exception as e:
             print(f" Erreur lors de la sauvegarde des paramètres : {e}")
-            return None, None  # ✅ Éviter que le serveur plante
+            return None, None  # Éviter que le serveur plante
 
 
 def server_fn(context: Context) -> ServerAppComponents:
