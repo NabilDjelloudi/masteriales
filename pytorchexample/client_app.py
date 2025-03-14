@@ -21,7 +21,7 @@ class FlowerClient(NumPyClient):
         self.valloader = valloader
         self.local_epochs = local_epochs
         self.lr = learning_rate
-        self.proximal_mu = proximal_mu  # ✅ Facteur proximal pour FedProx
+        self.proximal_mu = proximal_mu  # Facteur proximal pour FedProx
 
 
     def fit(self, parameters, config):
@@ -37,18 +37,18 @@ class FlowerClient(NumPyClient):
             self.local_epochs,
             self.lr,
             self.device,
-            proximal_mu=self.proximal_mu if config.get("strategy", "") == "FedProx" else 0.0,  # ✅ Appliquer FedProx si activé
-            global_weights=parameters if config.get("strategy", "") == "FedProx" else None,  # ✅ Poids globaux pour régularisation
+            proximal_mu=self.proximal_mu if config.get("strategy", "") == "FedProx" else 0.0,  #  Appliquer FedProx si activé
+            global_weights=parameters if config.get("strategy", "") == "FedProx" else None,  #  Poids globaux pour régularisation
         )
 
         end_time = time.time()
         training_time = end_time - start_time
 
-        results["time"] = training_time  # ✅ Ajouter le temps d'entraînement
+        results["time"] = training_time  #  Ajouter le temps d'entraînement
 
-        # 🔍 Tester après l'entraînement
+        #  Tester après l'entraînement
         loss, accuracy = test(self.net, self.valloader, self.device)
-        results["accuracy"] = accuracy  # ✅ Ajouter accuracy
+        results["accuracy"] = accuracy  #  Ajouter accuracy
 
         # 🚀 Vérifier ce que le client envoie au serveur
         print(f"[Client] Sending results: {results}")
@@ -78,7 +78,7 @@ def client_fn(context: Context):
     local_epochs = context.run_config["local-epochs"]
     learning_rate = context.run_config["learning-rate"]
 
-    proximal_mu = context.run_config.get("proximal-mu", 0.0)  # ✅ Récupérer mu si FedProx
+    proximal_mu = context.run_config.get("proximal-mu", 0.0)  #  Récupérer mu si FedProx
     client = FlowerClient(trainloader, valloader, local_epochs, learning_rate, proximal_mu)
 
 
