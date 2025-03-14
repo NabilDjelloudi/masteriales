@@ -26,7 +26,7 @@ class CustomFedNova(FedAvg):
         super().__init__(*args, **kwargs)
         self.num_rounds = num_rounds
         self.output_dir = "saved_models/fednova"
-        os.makedirs(self.output_dir, exist_ok=True)  # ✅ Assurer que le dossier existe
+        os.makedirs(self.output_dir, exist_ok=True)  #  Assurer que le dossier existe
 
     def aggregate_fit(self, server_round, results, failures):
         """Aggregate and save the model weights correctly."""
@@ -34,7 +34,7 @@ class CustomFedNova(FedAvg):
             print("[FedNova] No results received from clients.")
             return None, {}
 
-        # ✅ Normalisation temporelle
+        #  Normalisation temporelle
         total_time = sum(fit_res.metrics.get("time", 1.0) for _, fit_res in results)
         normalized_weights = []
 
@@ -43,23 +43,23 @@ class CustomFedNova(FedAvg):
             time_ratio = fit_res.metrics.get("time", 1.0) / max(1e-6, total_time)
             normalized_weights.append([w * time_ratio for w in weights])
 
-        # ✅ Agréger les poids normalisés
+        # Agréger les poids normalisés
         aggregated_weights = [
             sum(weight[k] for weight in normalized_weights) for k in range(len(normalized_weights[0]))
         ]
 
-        # ✅ Sauvegarde correcte avec `torch.save`
+        # Sauvegarde correcte avec `torch.save`
         if server_round == self.num_rounds:
             try:
-                model = Net()  # ✅ Instancier le modèle
+                model = Net()  # Instancier le modèle
                 state_dict = {k: torch.tensor(v) for k, v in zip(model.state_dict().keys(), aggregated_weights)}
                 output_path = f"{self.output_dir}/global_parameters_round_{server_round}.pth"
-                torch.save(state_dict, output_path)  # ✅ Sauvegarde PyTorch correcte
+                torch.save(state_dict, output_path)  # Sauvegarde PyTorch correcte
                 print(f"✅ Poids globaux FedNova sauvegardés dans {output_path}")
             except Exception as e:
-                print(f"❌ [FedNova] Erreur lors de la sauvegarde des poids : {e}")
+                print(f" [FedNova] Erreur lors de la sauvegarde des poids : {e}")
 
-        # ✅ Retourner les poids et les métriques globales
+        #  Retourner les poids et les métriques globales
         avg_loss = sum(fit_res.metrics["loss"] for _, fit_res in results) / len(results)
         global_accuracy = sum(fit_res.metrics.get("accuracy", 0.0) for _, fit_res in results) / len(results)
 
