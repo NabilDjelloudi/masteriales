@@ -92,7 +92,7 @@ def train(net, trainloader, valloader, epochs, lr, device, proximal_mu=0.0, glob
             outputs = net(images)
             loss = criterion(outputs, labels)
 
-            # ✅ Ajout du terme de régularisation de FedProx
+            #  Ajout du terme de régularisation de FedProx
             if proximal_mu > 0 and global_weights is not None:
                 global_params = list(global_weights)  
                 for param, global_param in zip(net.parameters(), global_params):
