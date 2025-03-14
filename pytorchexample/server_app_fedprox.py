@@ -41,10 +41,10 @@ class FedProx(FedAvg):
     ) -> Tuple[Parameters, Metrics]:
         """Aggregate weights with FedProx logic."""
         if not results:
-            print("❌ No results received from clients during aggregation.")
+            print(" No results received from clients during aggregation.")
             return None, {}
 
-        # 📌 1️⃣ Agrégation classique des poids (moyenne pondérée)
+        # Agrégation classique des poids (moyenne pondérée)
         total_examples = sum(fit_res.num_examples for _, fit_res in results)
         weighted_updates = []
 
@@ -57,25 +57,25 @@ class FedProx(FedAvg):
             for k in range(len(weighted_updates[0]))
         ]
 
-        # 📌 2️⃣ Ajouter le **terme proximal** (FedProx)
+        #  Ajouter le **terme proximal** (FedProx)
         if self.proximal_mu > 0 and self.initial_parameters is not None:
             global_weights = parameters_to_ndarrays(self.initial_parameters)
             aggregated_weights = [
                 w + self.proximal_mu * (global_w - w)
                 for w, global_w in zip(aggregated_weights, global_weights)
             ]
-            print(f"✅ [FedProx] Applied proximal term with mu={self.proximal_mu} at round {server_round}")
+            print(f" [FedProx] Applied proximal term with mu={self.proximal_mu} at round {server_round}")
 
-        # 📌 3️⃣ Sauvegarde des poids si c'est le dernier round
+        #  Sauvegarde des poids si c'est le dernier round
         if server_round == self.total_rounds:
             try:
                 output_path = output_dir / f"global_parameters_round_{server_round}.pth"
                 torch.save(aggregated_weights, output_path)
-                print(f"✅ [FedProx] Poids globaux sauvegardés dans {output_path}")
+                print(f" [FedProx] Poids globaux sauvegardés dans {output_path}")
             except Exception as e:
-                print(f"❌ [FedProx] Erreur lors de la sauvegarde des poids : {e}")
+                print(f" [FedProx] Erreur lors de la sauvegarde des poids : {e}")
 
-        # 📌 4️⃣ Retourner les poids et les **métriques globales**
+        #  Retourner les poids et les **métriques globales**
         global_metrics = {
             "global_loss": sum(fit_res.metrics["loss"] for _, fit_res in results) / len(results),
             "global_accuracy": sum(fit_res.metrics.get("accuracy", 0.0) for _, fit_res in results) / len(results),
