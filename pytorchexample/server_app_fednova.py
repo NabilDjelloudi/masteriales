@@ -55,7 +55,7 @@ class CustomFedNova(FedAvg):
                 state_dict = {k: torch.tensor(v) for k, v in zip(model.state_dict().keys(), aggregated_weights)}
                 output_path = f"{self.output_dir}/global_parameters_round_{server_round}.pth"
                 torch.save(state_dict, output_path)  # Sauvegarde PyTorch correcte
-                print(f"✅ Poids globaux FedNova sauvegardés dans {output_path}")
+                print(f" Poids globaux FedNova sauvegardés dans {output_path}")
             except Exception as e:
                 print(f" [FedNova] Erreur lors de la sauvegarde des poids : {e}")
 
