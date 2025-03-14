@@ -6,6 +6,7 @@ import numpy as np
 from flwr.common import Context, Metrics, ndarrays_to_parameters, parameters_to_ndarrays
 from flwr.server import ServerApp, ServerAppComponents, ServerConfig
 from flwr.server.strategy import FedAvg
+import torch
 
 from pytorchexample.task import Net, get_weights
 
@@ -35,21 +36,33 @@ class SaveFinalWeightsFedAvg(FedAvg):
 
     def aggregate_fit(self, server_round, results, failures):
         """Aggregate and directly save the parameters."""
-        aggregated_parameters = super().aggregate_fit(server_round, results, failures)
+        try:
+            aggregated_result = super().aggregate_fit(server_round, results, failures)
 
-        if aggregated_parameters is not None:
-            #print(f"[FedAvg] Round: {server_round}, Aggregated Parameters: {aggregated_parameters}")
+            #  Vérification du type de sortie
+            if isinstance(aggregated_result, tuple):  
+                aggregated_parameters, metrics_aggregated = aggregated_result  # On récupère les poids et les métriques
+            else:
+                aggregated_parameters = aggregated_result  
+                metrics_aggregated = {}  # On met un dict vide pour éviter les erreurs
 
-            try:
-                if server_round == self.num_rounds:
-                    # Sauvegarder directement les paramètres bruts
-                    output_path = output_dir / f"global_parameters_round_{server_round}.pkl"
-                    with open(output_path, "wb") as f:
-                        np.save(f, aggregated_parameters)
-                    print(f"Poids globaux finaux sauvegardés dans {output_path}")
-            except Exception as e:
-                print(f"Erreur lors de la sauvegarde des paramètres : {e}")
-        return aggregated_parameters
+            # Convertir en liste de tenseurs PyTorch
+            aggregated_weights = list(parameters_to_ndarrays(aggregated_parameters))
+
+            # Convertir en state_dict pour PyTorch
+            model = Net()  # Instancier le modèle
+            state_dict = {k: torch.tensor(v) for k, v in zip(model.state_dict().keys(), aggregated_weights)}
+
+            # Sauvegarde correcte
+            output_path = output_dir / f"global_parameters_round_{server_round}.pth"
+            torch.save(state_dict, output_path)
+            print(f" Poids globaux sauvegardés dans {output_path}")
+
+            return aggregated_parameters, metrics_aggregated  # ✅ On retourne bien un tuple
+
+        except Exception as e:
+            print(f" Erreur lors de la sauvegarde des paramètres : {e}")
+            return None, None  # ✅ Éviter que le serveur plante
 
 
 def server_fn(context: Context) -> ServerAppComponents:
